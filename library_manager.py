@@ -1,36 +1,34 @@
 import streamlit as st
-import mysql.connector
-from dotenv import load_dotenv
-import os
+import sqlite3
 
 st.set_page_config(page_title="Library Management System",
                    page_icon="📚", layout="wide")
 
-load_dotenv()
-
 def get_db_connection():
-    return mysql.connector.connect(
-        host=os.getenv('DB_HOST'),
-        database=os.getenv('DB_NAME'),
-        port=int(os.getenv('DB_PORT', 3306)),
-        user=os.getenv('DB_USER'),
-        password=os.getenv('DB_PASSWORD')
-    )
+    conn = sqlite3.connect("library.db")
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def run_query(query, params=(), fetch='all', commit=False, return_rowcount=False):
     conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
+    
     cursor.execute(query, params)
-    result = None
+    
     if commit:
         conn.commit()
-        if return_rowcount:
-            result = cursor.rowcount
+        result = cursor.rowcount if return_rowcount else None
     else:
-        if fetch == 'all':
-            result = cursor.fetchall()
-        elif fetch == 'one':
+        if fetch == 'one':
             result = cursor.fetchone()
+            if result is not None:
+                result = dict(result)
+        elif fetch == 'all':
+            result = cursor.fetchall()
+            result = [dict(row) for row in result] if result else []
+        else:
+            result = cursor.fetchall()
+    
     cursor.close()
     conn.close()
     return result
@@ -38,12 +36,12 @@ def run_query(query, params=(), fetch='all', commit=False, return_rowcount=False
 def initialize_table():
     create_table_query = """
     CREATE TABLE IF NOT EXISTS books (
-       id INT AUTO_INCREMENT PRIMARY KEY,
-       Title VARCHAR(255),
-       Author VARCHAR(255),
-       Publication_Year VARCHAR(4),
-       Genre VARCHAR(255),
-       Read_Status VARCHAR(10)
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       Title TEXT,
+       Author TEXT,
+       Publication_Year TEXT,
+       Genre TEXT,
+       Read_Status TEXT
     );
     """
     run_query(create_table_query, commit=True)
@@ -64,7 +62,7 @@ def add_a_book():
     if st.button('Save Book'):
         insert_query = """
         INSERT INTO books (Title, Author, Publication_Year, Genre, Read_Status)
-        VALUES (%s, %s, %s, %s, %s)
+        VALUES (?, ?, ?, ?, ?)
         """
         run_query(insert_query, (title, author, publication_year, genre, read_status), commit=True)
         st.success(f"Book: '{title}' successfully added")
@@ -73,7 +71,7 @@ def remove_a_book():
     st.header('🗑️ Remove a Book')
     title = st.text_input('Title to remove', key="remove_title")
     if st.button('Remove Book'):
-        delete_query = "DELETE FROM books WHERE Title = %s"
+        delete_query = "DELETE FROM books WHERE Title = ?"
         rowcount = run_query(delete_query, (title,), commit=True, return_rowcount=True)
         if rowcount > 0:
             st.success(f"Book: '{title}' successfully deleted")
@@ -93,7 +91,7 @@ def search_for_a_book():
     search_by = st.selectbox('Search by', ['Title', 'Author', 'Genre', 'Read_Status'])
     search_term = st.text_input('Enter a search term', key="search_term")
     if search_term:
-        query = f"SELECT * FROM books WHERE {search_by} LIKE %s"
+        query = f"SELECT * FROM books WHERE {search_by} LIKE ?"
         like_term = f"%{search_term}%"
         results = run_query(query, (like_term,), fetch='all')
         if results:
@@ -103,11 +101,15 @@ def search_for_a_book():
 
 def display_statistics():
     st.header('📊 Library Statistics')
+    
     total = run_query("SELECT COUNT(*) as total FROM books", fetch='one')
     total_books = total['total'] if total else 0
+
     read = run_query("SELECT COUNT(*) as read_count FROM books WHERE Read_Status = 'True'", fetch='one')
     read_books = read['read_count'] if read else 0
+    
     read_percentage = (read_books / total_books * 100) if total_books else 0
+
     col1, col2 = st.columns(2)
     with col1:
         st.metric("Total Books", total_books)

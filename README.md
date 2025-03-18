@@ -1,6 +1,6 @@
 # 📚 Library Management System
 
-A simple Library Management System built with **Streamlit** and **MySQL**. It allows users to add, remove, display, search books, and view basic statistics.
+A simple Library Management System built with **Streamlit** and **SQLlite**. It allows users to add, remove, display, search books, and view basic statistics.
 
 ## Features
 - **Add a Book**: Save book details (title, author, year, genre, and read status).
