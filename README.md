@@ -9,9 +9,4 @@ A simple Library Management System built with **Streamlit** and **SQLlite**. It 
 - **Search for a Book**: Search by title, author, genre, or read status.
 - **Statistics**: See the total number of books and the percentage of read books.
 
-## Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/DanielHashmi/Library-Management-System.git
-   cd Library-Management-System
+Live: https://library-managment-system-with-sqllite.streamlit.app/
